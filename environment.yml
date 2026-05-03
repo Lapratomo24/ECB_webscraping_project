@@ -1,0 +1,13 @@
+name: ecb-text
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - requests
+  - beautifulsoup4
+  - lxml
+  - pandas
+  - nltk
+  - matplotlib
+  - wordcloud
+  - ipykernel
