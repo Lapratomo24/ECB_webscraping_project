@@ -10,7 +10,6 @@ from bs4 import BeautifulSoup
 from nltk.sentiment import SentimentIntensityAnalyzer
 from wordcloud import STOPWORDS, WordCloud
 
-
 # Step 1: Store the ECB webpage address.
 URL = "https://www.ecb.europa.eu/press/press_conference/monetary-policy-statement/2026/html/ecb.is260319~93b1cbad97.en.html"
 
@@ -22,15 +21,11 @@ OUTPUT_DIR = Path("outputs")
 DATA_DIR.mkdir(exist_ok=True)
 OUTPUT_DIR.mkdir(exist_ok=True)
 
-
 def clean_whitespace(text: str) -> str:
-    # Step 4: Turn messy spacing into clean spacing.
     """Turn repeated spaces, tabs, and newlines into single spaces."""
     return re.sub(r"\s+", " ", text).strip()
 
-
 def sentiment_label(compound: float) -> str:
-    # Step 5: Map the numeric compound score to a simple word label.
     """Convert a VADER compound score into a simple label."""
     if compound >= 0.05:
         return "positive"
@@ -38,150 +33,122 @@ def sentiment_label(compound: float) -> str:
         return "negative"
     return "neutral"
 
-
 def tokenize_words(text: str, stopwords: set[str]) -> list[str]:
-    # Step 6: Break the text into lowercase word tokens.
-    # We keep alphabetic words and allow apostrophes or hyphens inside them.
-    # Then we remove short words and stopwords.
     """Make a simple list of lowercase words, excluding stopwords."""
     tokens = re.findall(r"[A-Za-z][A-Za-z'-]+", text.lower())
-    return [
-        token
-        for token in tokens
-        if len(token) > 2 and token not in stopwords
-    ]
+    return [token for token in tokens if len(token) > 2 and token not in stopwords]
+
+# Step 4: Define a new helper function to analyze and save data for any section of text.
+def analyze_text_section(text: str, section_name: str, stopwords: set[str], analyzer: SentimentIntensityAnalyzer):
+    """Runs sentiment analysis, counts words, generates a word cloud, and saves all outputs."""
+    print(f"--- Processing {section_name.upper()} ---")
+
+    # 4a. Save the raw text
+    text_path = DATA_DIR / f"ecb_{section_name}_2026-03-19.txt"
+    text_path.write_text(text, encoding="utf-8")
+
+    # 4b. Sentiment Analysis
+    scores = analyzer.polarity_scores(text)
+    scores["sentiment_label"] = sentiment_label(scores["compound"])
+    scores["section"] = section_name
+    scores["source_url"] = URL
+
+    sentiment_summary = pd.DataFrame([scores])
+    sentiment_path = OUTPUT_DIR / f"ecb_{section_name}_sentiment.csv"
+    sentiment_summary.to_csv(sentiment_path, index=False)
+
+    # 4c. Tokenize and Count Words
+    tokens = tokenize_words(text, stopwords)
+    word_counts = Counter(tokens)
+
+    top_words = pd.DataFrame(word_counts.most_common(30), columns=["word", "count"])
+    top_words_path = OUTPUT_DIR / f"ecb_{section_name}_top_words.csv"
+    top_words.to_csv(top_words_path, index=False)
+
+    # 4d. Generate and Save Word Cloud
+    wordcloud = WordCloud(
+        width=1200, height=700, background_color="white",
+        stopwords=stopwords, colormap="viridis", random_state=42
+    ).generate(text)
+
+    wordcloud_path = OUTPUT_DIR / f"ecb_{section_name}_wordcloud.png"
+    plt.figure(figsize=(12, 7))
+    plt.imshow(wordcloud, interpolation="bilinear")
+    plt.axis("off")
+    plt.tight_layout(pad=0)
+    plt.savefig(wordcloud_path, dpi=200, bbox_inches="tight")
+    plt.close()
+
+    # Print brief summary to the console
+    print(f"Sentiment: {scores['sentiment_label']} (Compound: {scores['compound']})")
+    print(f"Saved files: Text, Sentiment CSV, Top Words CSV, Wordcloud PNG to folders.\n")
 
 
-# Step 7: Add a User-Agent so the request looks browser-like.
-headers = {
-    "User-Agent": "Mozilla/5.0 (beginner text analysis tutorial)"
-}
-
-# Step 8: Download the ECB page.
+# Step 5: Setup requests and download the page.
+headers = {"User-Agent": "Mozilla/5.0 (beginner text analysis tutorial)"}
 response = requests.get(URL, headers=headers, timeout=30)
-
-# Step 9: Stop if the request failed.
 response.raise_for_status()
 
-# Step 10: Parse the HTML so we can find elements inside it.
+# Step 6: Parse the HTML.
 soup = BeautifulSoup(response.text, "lxml")
-
-# Step 11: Locate the main article section.
 section = soup.select_one("main div.section")
 if section is None:
-    raise RuntimeError("Could not find the article section. The page structure may have changed.")
+    raise RuntimeError("Could not find the article section.")
 
-# Step 12: Remove elements that are not part of the real script text.
+# Step 7: Clean out unwanted elements.
+# Note: We keep `a[href="#qa"]` in the decompose list because that's the "jump link" at the top, not the actual section anchor.
 for unwanted in section.select('script, style, a[href="#qa"], .ecb-publicationDate'):
     unwanted.decompose()
 
-# Step 13: Extract clean text from headings and paragraphs.
-text_blocks = []
+# Step 8: Prepare lists to hold our two separate blocks of text, and a flag to track where we are.
+statement_blocks = []
+qa_blocks = []
+in_qa_section = False
+
+# Step 9: Iterate through headings and paragraphs.
 for element in section.find_all(["h2", "p"]):
     classes = element.get("class", [])
 
-    # Skip the subtitle line with speaker names.
     if "ecb-pressContentSubtitle" in classes:
         continue
 
-    # Pull out plain text from the HTML tag and clean the spacing.
+    # Step 10: Check if we have reached the Q&A anchor.
+    # The anchor target might be an id="qa" on the heading, or an <a name="qa"> inside it.
+    if element.get("id") == "qa" or element.find(id="qa") or element.find(attrs={"name": "qa"}):
+        in_qa_section = True  # Flip the switch! Everything after this goes to QA.
+
     text = clean_whitespace(element.get_text(" ", strip=True))
     if text:
-        text_blocks.append(text)
+        # Step 11: Route the text to the correct list based on our flag.
+        if in_qa_section:
+            qa_blocks.append(text)
+        else:
+            statement_blocks.append(text)
 
-# Step 14: Join everything into one full document.
-full_text = "\n\n".join(text_blocks)
+# Step 12: Join the blocks into two full documents.
+statement_text = "\n\n".join(statement_blocks)
+qa_text = "\n\n".join(qa_blocks)
 
-# Step 15: Save the extracted text as a plain text file.
-text_path = DATA_DIR / "ecb_press_conference_2026-03-19.txt"
-text_path.write_text(full_text, encoding="utf-8")
-
-# Step 16: Download the VADER lexicon and build the sentiment analyzer.
+# Step 13: Initialize our NLP tools (VADER and Stopwords).
 nltk.download("vader_lexicon", quiet=True)
-sentiment_analyzer = SentimentIntensityAnalyzer()
+vader_analyzer = SentimentIntensityAnalyzer()
 
-# Step 17: Score the full press conference as one document.
-scores = sentiment_analyzer.polarity_scores(full_text)
-scores["sentiment_label"] = sentiment_label(scores["compound"])
-scores["source_url"] = URL
-
-# Step 18: Save the sentiment result as a one-row CSV summary.
-sentiment_summary = pd.DataFrame([scores])
-sentiment_path = OUTPUT_DIR / "ecb_sentiment_summary.csv"
-sentiment_summary.to_csv(sentiment_path, index=False)
-
-# Step 19: Start from the default English stopwords used by the wordcloud package.
 custom_stopwords = set(STOPWORDS)
+custom_stopwords.update({
+    "ecb", "euro", "area", "monetary", "policy", "inflation", "per", "cent",
+    "will", "would", "could", "also", "question", "questions", "answer",
+    "answers", "think", "going",
+})
 
-# Step 20: Add domain-specific words that would otherwise dominate the figure.
-# These words are common in ECB texts, so removing them helps other themes stand out.
-custom_stopwords.update(
-    {
-        "ecb",
-        "euro",
-        "area",
-        "monetary",
-        "policy",
-        "inflation",
-        "per",
-        "cent",
-        "will",
-        "would",
-        "could",
-        "also",
-        "question",
-        "questions",
-        "answer",
-        "answers",
-        "think",
-        "going",
-    }
-)
+# Step 14: Run our new helper function on both sections!
+if statement_text:
+    analyze_text_section(statement_text, "statement", custom_stopwords, vader_analyzer)
+else:
+    print("Warning: No text found for the Statement.")
 
-# Step 21: Tokenize the clean text and remove stopwords.
-tokens = tokenize_words(full_text, custom_stopwords)
+if qa_text:
+    analyze_text_section(qa_text, "qa", custom_stopwords, vader_analyzer)
+else:
+    print("Warning: No text found for the Q&A section.")
 
-# Step 22: Count how often each remaining word appears.
-word_counts = Counter(tokens)
-
-# Step 23: Save the top 30 words as a CSV table.
-top_words = pd.DataFrame(
-    word_counts.most_common(30),
-    columns=["word", "count"],
-)
-top_words_path = OUTPUT_DIR / "ecb_top_words.csv"
-top_words.to_csv(top_words_path, index=False)
-
-# Step 24: Build the word cloud image from the full text.
-# The display settings control the size, colors, and reproducibility of the figure.
-wordcloud = WordCloud(
-    width=1200,
-    height=700,
-    background_color="white",
-    stopwords=custom_stopwords,
-    colormap="viridis",
-    random_state=42,
-).generate(full_text)
-
-# Step 25: Choose the output path for the word cloud image.
-wordcloud_path = OUTPUT_DIR / "ecb_wordcloud.png"
-
-# Step 26: Draw the word cloud with matplotlib and save it as a PNG file.
-plt.figure(figsize=(12, 7))
-plt.imshow(wordcloud, interpolation="bilinear")
-plt.axis("off")
-plt.tight_layout(pad=0)
-plt.savefig(wordcloud_path, dpi=200, bbox_inches="tight")
-plt.close()
-
-# Step 27: Print a short summary so we can confirm all output files were created.
-print("Saved text to:", text_path)
-print("Saved sentiment summary to:", sentiment_path)
-print("Saved top words table to:", top_words_path)
-print("Saved word cloud to:", wordcloud_path)
-print()
-print("Whole-document sentiment scores:")
-print(sentiment_summary[["neg", "neu", "pos", "compound", "sentiment_label"]])
-print()
-print("Top 10 words after stopword removal:")
-print(top_words.head(10))
+print("Analysis complete!")
