@@ -94,6 +94,25 @@ sentiment_csv_path = OUTPUT_DIR / "ecb_paragraph_sentiment.csv"
 df.to_csv(sentiment_csv_path, index=False)
 print(f"Saved paragraph sentiment to: {sentiment_csv_path}")
 
+# --- Added Step 8.5: I forgot to save the raw text files in previous commit ---
+
+# 1. Save the full conference text
+full_text = "\n\n".join(df["Text"])
+text_path = DATA_DIR / "ecb_press_conference_2025-12-18.txt"
+text_path.write_text(full_text, encoding="utf-8")
+
+# 2. Save the Statement only
+statement_only = "\n\n".join(df[df["Section"] == "Statement"]["Text"])
+statement_text_path = DATA_DIR / "ecb_statement_2025-12-18.txt"
+statement_text_path.write_text(statement_only, encoding="utf-8")
+
+# 3. Save the Q&A only
+qa_only = "\n\n".join(df[df["Section"] == "Q&A"]["Text"])
+qa_text_path = DATA_DIR / "ecb_qa_2025-12-18.txt"
+qa_text_path.write_text(qa_only, encoding="utf-8")
+
+print(f"Saved raw text files to: {DATA_DIR}")
+
 # Step 9: Setup comprehensive stopwords.
 custom_stopwords = set(STOPWORDS)
 custom_stopwords.update({
