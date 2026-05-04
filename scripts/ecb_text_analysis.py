@@ -14,8 +14,8 @@ URL = "https://www.ecb.europa.eu/press/press_conference/monetary-policy-statemen
 
 # Step 2: Define folders for saved text and output files.
 BASE_DIR = Path("assignment")
-DATA_DIR = Path("data")
-OUTPUT_DIR = Path("outputs")
+DATA_DIR = BASE_DIR / "data"
+OUTPUT_DIR = BASE_DIR / "outputs"
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -180,7 +180,7 @@ TextBlob smooths out the 'noise' in highly technical documents, providing a more
 - By splitting the word frequencies, we can observe the Statement focusing heavily on macro-level topics (growth, inflation targets, medium-term projections), whereas the Q&A word cloud often highlights the immediate anxieties of the press room (specific country debt, energy crises, or recent data releases).
 """
 
-report_path = OUTPUT_DIR / "ecb_analysis_report.txt"
+report_path = DATA_DIR / "ecb_analysis_report.txt"
 report_path.write_text(report_content, encoding="utf-8")
 print(f"Saved analytical report to: {report_path}")
 print("\nAll tasks completed successfully!")

@@ -1,0 +1,13 @@
+ECB Press Conference Analysis Report
+====================================
+
+1. Reasoning for Choosing TextBlob
+-------------------------------------
+While VADER was used for the tutorial assignment, I chose to use TextBlob for this assignment. This package uses an averaged pattern-analyzer dictionary, which is generally better suited for formal, institutional, or academic texts like an ECB Press Conference.
+TextBlob smooths out the 'noise' in highly technical documents, providing a more reliable paragraph-by-paragraph trajectory. VADER, on the other hand, is optimized for social media and conversational text, which can lead to exaggerated sentiment scores in a formal context.
+
+2. Insights from Paragraph-Level Tone and Topic Focus
+-----------------------------------------------------
+- The Sentiment flow chart typically reveals that the Statement section is tightly controlled. The polarity scores usually hover slightly above or perfectly at 0 (neutral), reflecting carefully curated central bank jargon designed not to shock the markets.
+- In contrast, the 'Q&A' section often shows significantly higher variance (spikes and dips in the line chart). This reflects the probing nature of journalists asking about specific risks, inflation fears, or geopolitical tensions, and the President's spontaneous, conversational defense of the policy.
+- By splitting the word frequencies, we can observe the Statement focusing heavily on macro-level topics (growth, inflation targets, medium-term projections), whereas the Q&A word cloud often highlights the immediate anxieties of the press room (specific country debt, energy crises, or recent data releases).
