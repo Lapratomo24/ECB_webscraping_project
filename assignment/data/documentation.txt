@@ -1,0 +1,30 @@
+ECB Press Conference Text Analysis Script Assignment Documentation
+====================================
+
+#### Overview
+This Python script scrapes and analyzes the European Central Bank (ECB) press conference webpage. It separates the monetary policy statement from the Q&A section, performs paragraph-level sentiment analysis using TextBlob, generates word frequency lists and word clouds for each section, creates a sentiment flow chart, and produces an analytical report.
+
+#### Requirements
+- Python 3.11+
+- Dependencies: `requests`, `beautifulsoup4`, `lxml`, `pandas`, `matplotlib`, `textblob`, `wordcloud`
+- Install via Conda: `conda env update -f environment.yml`
+
+#### Usage
+1. Activate the environment: `conda activate ecb-text`
+2. Run the script: `python scripts/ecb_text_analysis.py`
+3. Outputs are saved in `assignment/` folder.
+
+#### Key Features
+- Web Scraping: Downloads and parses the ECB page, removing unwanted elements.
+- Text Separation: Splits content into Statement and Q&A based on HTML structure.
+- Sentiment Analysis: Uses TextBlob for polarity scores per paragraph.
+- Word Analysis: Tokenizes text, removes stopwords, generates top 30 words and word clouds per section.
+- Visualization: Creates a line chart showing sentiment flow across paragraphs.
+- Report: Generates a text file with insights on sentiment and topic focus.
+
+#### Outputs
+- `ecb_paragraph_sentiment.csv`: Paragraph-level sentiment data.
+- `ecb_statement_top_words.csv` & `ecb_qa_top_words.csv`: Word frequencies.
+- `ecb_statement_wordcloud.png` & `ecb_qa_wordcloud.png`: Word clouds.
+- `ecb_sentiment_flow_chart.png`: Sentiment trajectory chart.
+- `ecb_analysis_report.txt`: Analytical summary.
